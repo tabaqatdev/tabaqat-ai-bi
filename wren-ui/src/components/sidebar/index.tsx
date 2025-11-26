@@ -86,10 +86,12 @@ export default function Sidebar(props: Props) {
     <Layout className="d-flex flex-column">
       <DynamicSidebar {...props} pathname={router.pathname} />
       <div className="border-t border-gray-4 pt-2">
-        <StyledButton type="text" block onClick={onSettingsClick}>
-          <SettingOutlined className="text-md" />
-          Settings
-        </StyledButton>
+        {router.query.admin === '1' && (
+          <StyledButton type="text" block onClick={onSettingsClick}>
+            <SettingOutlined className="text-md" />
+            Settings
+          </StyledButton>
+        )}
       </div>
     </Layout>
   );
