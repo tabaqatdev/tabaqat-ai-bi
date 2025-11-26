@@ -43,13 +43,13 @@ export default function Starter(props) {
         Connect a data source
       </Typography.Title>
       <Typography.Text>
-        Vote for your favorite data sources on{' '}
+        Powered by{' '}
         <Link
-          href="https://github.com/Canner/WrenAI/discussions/327"
+          href="https://tabaqat.net"
           target="_blank"
           rel="noopener noreferrer"
         >
-          GitHub
+          Tabaqat
         </Link>
         .
       </Typography.Text>

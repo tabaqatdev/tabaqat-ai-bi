@@ -7,7 +7,7 @@ import Deploy from '@/components/deploy/Deploy';
 
 const { Header } = Layout;
 
-const StyledButton = styled(Button)<{ $isHighlight: boolean }>`
+const StyledButton = styled(Button) <{ $isHighlight: boolean }>`
   background: ${(props) =>
     props.$isHighlight ? 'rgba(255, 255, 255, 0.20)' : 'transparent'};
   font-weight: ${(props) => (props.$isHighlight ? '700' : 'normal')};
@@ -17,9 +17,9 @@ const StyledButton = styled(Button)<{ $isHighlight: boolean }>`
   &:hover,
   &:focus {
     background: ${(props) =>
-      props.$isHighlight
-        ? 'rgba(255, 255, 255, 0.20)'
-        : 'rgba(255, 255, 255, 0.05)'};
+    props.$isHighlight
+      ? 'rgba(255, 255, 255, 0.20)'
+      : 'rgba(255, 255, 255, 0.05)'};
     color: var(--gray-1);
   }
 `;
@@ -44,7 +44,6 @@ export default function HeaderBar() {
         style={{ marginTop: -2 }}
       >
         <Space size={[48, 0]}>
-          <LogoBar />
           {showNav && (
             <Space size={[16, 0]}>
               <StyledButton
@@ -55,30 +54,34 @@ export default function HeaderBar() {
               >
                 Home
               </StyledButton>
-              <StyledButton
-                shape="round"
-                size="small"
-                $isHighlight={pathname.startsWith(Path.Modeling)}
-                onClick={() => router.push(Path.Modeling)}
-              >
-                Modeling
-              </StyledButton>
-              <StyledButton
-                shape="round"
-                size="small"
-                $isHighlight={pathname.startsWith(Path.Knowledge)}
-                onClick={() => router.push(Path.KnowledgeQuestionSQLPairs)}
-              >
-                Knowledge
-              </StyledButton>
-              <StyledButton
-                shape="round"
-                size="small"
-                $isHighlight={pathname.startsWith(Path.APIManagement)}
-                onClick={() => router.push(Path.APIManagementHistory)}
-              >
-                API
-              </StyledButton>
+              {router.query.admin === '1' && (
+                <>
+                  <StyledButton
+                    shape="round"
+                    size="small"
+                    $isHighlight={pathname.startsWith(Path.Modeling)}
+                    onClick={() => router.push(Path.Modeling)}
+                  >
+                    Modeling
+                  </StyledButton>
+                  <StyledButton
+                    shape="round"
+                    size="small"
+                    $isHighlight={pathname.startsWith(Path.Knowledge)}
+                    onClick={() => router.push(Path.KnowledgeQuestionSQLPairs)}
+                  >
+                    Knowledge
+                  </StyledButton>
+                  <StyledButton
+                    shape="round"
+                    size="small"
+                    $isHighlight={pathname.startsWith(Path.APIManagement)}
+                    onClick={() => router.push(Path.APIManagementHistory)}
+                  >
+                    API
+                  </StyledButton>
+                </>
+              )}
             </Space>
           )}
         </Space>

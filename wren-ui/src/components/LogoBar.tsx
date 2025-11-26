@@ -3,9 +3,9 @@ import Image from 'next/image';
 export default function LogoBar() {
   return (
     <Image
-      src="/images/logo-white-with-text.svg"
-      alt="Wren AI"
-      width={125}
+      src="/images/tabaqat-logo.png"
+      alt="Tabaqat"
+      width={80}
       height={30}
     />
   );
