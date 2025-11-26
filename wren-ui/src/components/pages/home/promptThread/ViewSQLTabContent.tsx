@@ -145,7 +145,7 @@ export default function ViewSQLTabContent(props: AnswerResultProps) {
               </>
             ) : (
               <span className="d-flex align-center gx-2">
-                <Logo size={18} />
+                <Logo width={38} height={18} />
                 <Text className="gray-8 text-medium text-sm">Wren SQL</Text>
               </span>
             )}

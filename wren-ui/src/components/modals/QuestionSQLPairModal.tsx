@@ -40,7 +40,7 @@ const Toolbar = (props: { dataSource: string; onClick: () => void }) => {
   return (
     <div className="d-flex justify-space-between align-center px-1">
       <span className="d-flex align-center gx-2">
-        <Logo size={16} />
+        <Logo width={33} height={16} />
         Wren SQL
       </span>
       <Button className="px-0" type="link" size="small" onClick={onClick}>

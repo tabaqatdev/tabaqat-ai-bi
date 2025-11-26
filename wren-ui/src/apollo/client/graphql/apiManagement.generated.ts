@@ -8,31 +8,53 @@ export type ApiHistoryQueryVariables = Types.Exact<{
   pagination: Types.ApiHistoryPaginationInput;
 }>;
 
-
-export type ApiHistoryQuery = { __typename?: 'Query', apiHistory: { __typename?: 'ApiHistoryPaginatedResponse', total: number, hasMore: boolean, items: Array<{ __typename?: 'ApiHistoryResponse', id: string, projectId: number, apiType: Types.ApiType, threadId?: string | null, headers?: any | null, requestPayload?: any | null, responsePayload?: any | null, statusCode?: number | null, durationMs?: number | null, createdAt: string, updatedAt: string }> } };
-
+export type ApiHistoryQuery = {
+  __typename?: 'Query';
+  apiHistory: {
+    __typename?: 'ApiHistoryPaginatedResponse';
+    total: number;
+    hasMore: boolean;
+    items: Array<{
+      __typename?: 'ApiHistoryResponse';
+      id: string;
+      projectId: number;
+      apiType: Types.ApiType;
+      threadId?: string | null;
+      headers?: any | null;
+      requestPayload?: any | null;
+      responsePayload?: any | null;
+      statusCode?: number | null;
+      durationMs?: number | null;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+  };
+};
 
 export const ApiHistoryDocument = gql`
-    query ApiHistory($filter: ApiHistoryFilterInput, $pagination: ApiHistoryPaginationInput!) {
-  apiHistory(filter: $filter, pagination: $pagination) {
-    items {
-      id
-      projectId
-      apiType
-      threadId
-      headers
-      requestPayload
-      responsePayload
-      statusCode
-      durationMs
-      createdAt
-      updatedAt
+  query ApiHistory(
+    $filter: ApiHistoryFilterInput
+    $pagination: ApiHistoryPaginationInput!
+  ) {
+    apiHistory(filter: $filter, pagination: $pagination) {
+      items {
+        id
+        projectId
+        apiType
+        threadId
+        headers
+        requestPayload
+        responsePayload
+        statusCode
+        durationMs
+        createdAt
+        updatedAt
+      }
+      total
+      hasMore
     }
-    total
-    hasMore
   }
-}
-    `;
+`;
 
 /**
  * __useApiHistoryQuery__
@@ -51,14 +73,35 @@ export const ApiHistoryDocument = gql`
  *   },
  * });
  */
-export function useApiHistoryQuery(baseOptions: Apollo.QueryHookOptions<ApiHistoryQuery, ApiHistoryQueryVariables>) {
-        const options = {...defaultOptions, ...baseOptions}
-        return Apollo.useQuery<ApiHistoryQuery, ApiHistoryQueryVariables>(ApiHistoryDocument, options);
-      }
-export function useApiHistoryLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<ApiHistoryQuery, ApiHistoryQueryVariables>) {
-          const options = {...defaultOptions, ...baseOptions}
-          return Apollo.useLazyQuery<ApiHistoryQuery, ApiHistoryQueryVariables>(ApiHistoryDocument, options);
-        }
+export function useApiHistoryQuery(
+  baseOptions: Apollo.QueryHookOptions<
+    ApiHistoryQuery,
+    ApiHistoryQueryVariables
+  >,
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return Apollo.useQuery<ApiHistoryQuery, ApiHistoryQueryVariables>(
+    ApiHistoryDocument,
+    options,
+  );
+}
+export function useApiHistoryLazyQuery(
+  baseOptions?: Apollo.LazyQueryHookOptions<
+    ApiHistoryQuery,
+    ApiHistoryQueryVariables
+  >,
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return Apollo.useLazyQuery<ApiHistoryQuery, ApiHistoryQueryVariables>(
+    ApiHistoryDocument,
+    options,
+  );
+}
 export type ApiHistoryQueryHookResult = ReturnType<typeof useApiHistoryQuery>;
-export type ApiHistoryLazyQueryHookResult = ReturnType<typeof useApiHistoryLazyQuery>;
-export type ApiHistoryQueryResult = Apollo.QueryResult<ApiHistoryQuery, ApiHistoryQueryVariables>;
+export type ApiHistoryLazyQueryHookResult = ReturnType<
+  typeof useApiHistoryLazyQuery
+>;
+export type ApiHistoryQueryResult = Apollo.QueryResult<
+  ApiHistoryQuery,
+  ApiHistoryQueryVariables
+>;

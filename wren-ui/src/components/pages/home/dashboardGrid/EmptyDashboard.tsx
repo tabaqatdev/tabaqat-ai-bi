@@ -1,4 +1,3 @@
-
 import Image from 'next/image';
 import { Row, Col } from 'antd';
 import { Logo } from '@/components/Logo';

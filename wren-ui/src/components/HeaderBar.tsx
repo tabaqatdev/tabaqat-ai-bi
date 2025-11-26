@@ -1,13 +1,12 @@
 import { useRouter } from 'next/router';
 import { Button, Layout, Space } from 'antd';
 import styled from 'styled-components';
-import LogoBar from '@/components/LogoBar';
 import { Path } from '@/utils/enum';
 import Deploy from '@/components/deploy/Deploy';
 
 const { Header } = Layout;
 
-const StyledButton = styled(Button) <{ $isHighlight: boolean }>`
+const StyledButton = styled(Button)<{ $isHighlight: boolean }>`
   background: ${(props) =>
     props.$isHighlight ? 'rgba(255, 255, 255, 0.20)' : 'transparent'};
   font-weight: ${(props) => (props.$isHighlight ? '700' : 'normal')};
@@ -17,9 +16,9 @@ const StyledButton = styled(Button) <{ $isHighlight: boolean }>`
   &:hover,
   &:focus {
     background: ${(props) =>
-    props.$isHighlight
-      ? 'rgba(255, 255, 255, 0.20)'
-      : 'rgba(255, 255, 255, 0.05)'};
+      props.$isHighlight
+        ? 'rgba(255, 255, 255, 0.20)'
+        : 'rgba(255, 255, 255, 0.05)'};
     color: var(--gray-1);
   }
 `;
