@@ -9,7 +9,6 @@ import Home, { Props as HomeSidebarProps } from './Home';
 import Modeling, { Props as ModelingSidebarProps } from './Modeling';
 import Knowledge from './Knowledge';
 import APIManagement from './APIManagement';
-import LearningSection from '@/components/learning';
 
 const Layout = styled.div`
   position: relative;
@@ -86,23 +85,10 @@ export default function Sidebar(props: Props) {
   return (
     <Layout className="d-flex flex-column">
       <DynamicSidebar {...props} pathname={router.pathname} />
-      <LearningSection />
       <div className="border-t border-gray-4 pt-2">
         <StyledButton type="text" block onClick={onSettingsClick}>
           <SettingOutlined className="text-md" />
           Settings
-        </StyledButton>
-        <StyledButton type="text" block>
-          <Link
-            className="d-flex align-center"
-            href="https://tabaqat.net"
-            target="_blank"
-            rel="noopener noreferrer"
-            data-ph-capture="true"
-            data-ph-capture-attribute-name="cta_go_to_tabaqat"
-          >
-            <GithubIcon className="mr-2" style={{ width: 16 }} /> Tabaqat
-          </Link>
         </StyledButton>
       </div>
     </Layout>
