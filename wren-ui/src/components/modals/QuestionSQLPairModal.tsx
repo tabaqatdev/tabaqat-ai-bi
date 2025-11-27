@@ -214,8 +214,8 @@ export default function QuestionSQLPairModal(props: Props) {
                 type="secondary"
                 className="text-sm gray-7 text-left"
               >
-                The SQL statement used here follows <b>SQL</b>, which is
-                based on ANSI SQL and optimized for Wren AI.{` `}
+                The SQL statement used here follows <b>SQL</b>, which is based
+                on ANSI SQL and optimized for Wren AI.{` `}
                 <Typography.Link
                   type="secondary"
                   href="https://docs.getwren.ai/oss/guide/home/wren_sql"

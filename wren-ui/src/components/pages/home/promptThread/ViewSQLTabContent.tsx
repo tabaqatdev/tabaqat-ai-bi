@@ -92,8 +92,8 @@ export default function ViewSQLTabContent(props: AnswerResultProps) {
     if (!nativeSQLResult.nativeSQLMode) {
       message.success(
         <>
-          You copied SQL. This dialect is for the Wren Engine and may not
-          run directly on your database.
+          You copied SQL. This dialect is for the Wren Engine and may not run
+          directly on your database.
           {hasNativeSQL && (
             <>
               {' '}
@@ -112,9 +112,8 @@ export default function ViewSQLTabContent(props: AnswerResultProps) {
         className="mb-3 adm-alert-info"
         message={
           <>
-            You’re viewing SQL by default. If you want to run this query on
-            your own database, click “Show original SQL” to get the exact
-            syntax.
+            You’re viewing SQL by default. If you want to run this query on your
+            own database, click “Show original SQL” to get the exact syntax.
           </>
         }
         type="info"
