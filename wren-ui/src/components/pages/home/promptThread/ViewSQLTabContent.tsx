@@ -92,7 +92,7 @@ export default function ViewSQLTabContent(props: AnswerResultProps) {
     if (!nativeSQLResult.nativeSQLMode) {
       message.success(
         <>
-          You copied Wren SQL. This dialect is for the Wren Engine and may not
+          You copied SQL. This dialect is for the Wren Engine and may not
           run directly on your database.
           {hasNativeSQL && (
             <>
@@ -112,17 +112,9 @@ export default function ViewSQLTabContent(props: AnswerResultProps) {
         className="mb-3 adm-alert-info"
         message={
           <>
-            You’re viewing Wren SQL by default. If you want to run this query on
+            You’re viewing SQL by default. If you want to run this query on
             your own database, click “Show original SQL” to get the exact
             syntax.
-            <Typography.Link
-              className="underline ml-1"
-              href="https://docs.getwren.ai/oss/guide/home/wren_sql"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learn more about Wren SQL
-            </Typography.Link>
           </>
         }
         type="info"
@@ -146,7 +138,7 @@ export default function ViewSQLTabContent(props: AnswerResultProps) {
             ) : (
               <span className="d-flex align-center gx-2">
                 <Logo width={38} height={18} />
-                <Text className="gray-8 text-medium text-sm">Wren SQL</Text>
+                <Text className="gray-8 text-medium text-sm">SQL</Text>
               </span>
             )}
           </div>
