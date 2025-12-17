@@ -12,6 +12,10 @@ const resolveAlias = {
 /** @type {import('next').NextConfig} */
 const nextConfig = withLess({
   output: 'standalone',
+  eslint: {
+    // Disable ESLint during builds (for local development with CRLF line endings)
+    ignoreDuringBuilds: true,
+  },
   staticPageGenerationTimeout: 1000,
   compiler: {
     // Enables the styled-components SWC transform
