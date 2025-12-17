@@ -23,28 +23,47 @@ def get_engine_supported_data_type(data_type: str) -> str:
             return "DOUBLE"
         case "INT64":
             return "BIGINT"
+        case "GEOMETRY" | "GEOGRAPHY" | "POINT" | "LINESTRING" | "POLYGON" | "MULTIPOINT" | "MULTILINESTRING" | "MULTIPOLYGON" | "GEOMETRYCOLLECTION":
+            return "GEOMETRY"
         case _:
             return data_type.upper()
 
 
+# List of geometry types for PostGIS support
+GEOMETRY_TYPES = {
+    "geometry", "geography", "point", "linestring", "polygon",
+    "multipoint", "multilinestring", "multipolygon", "geometrycollection"
+}
+
+
+def is_geometry_type(data_type: str) -> bool:
+    """Check if the data type is a geometry/PostGIS type."""
+    return data_type.lower() in GEOMETRY_TYPES
+
+
 def build_table_ddl(
     content: dict, columns: Optional[set[str]] = None, tables: Optional[set[str]] = None
-) -> Tuple[str, bool, bool]:
+) -> Tuple[str, bool, bool, bool]:
     columns_ddl = []
     has_calculated_field = False
     has_json_field = False
+    has_geometry_field = False
 
     for column in content["columns"]:
         if column["type"] == "COLUMN":
+            data_type_lower = column["data_type"].lower()
+            # Allow geometry types even if they might appear as unknown in some cases
+            is_geometry = is_geometry_type(data_type_lower)
             if (
                 (not columns or (columns and column["name"] in columns))
-                and column["data_type"].lower()
-                != "unknown"  # quick fix: filtering out UNKNOWN column type
+                and (data_type_lower != "unknown" or is_geometry)
             ):
                 if "This column is a Calculated Field" in column["comment"]:
                     has_calculated_field = True
-                if column["data_type"].lower() == "json":
+                if data_type_lower == "json":
                     has_json_field = True
+                if is_geometry:
+                    has_geometry_field = True
                 column_ddl = f"{column['comment']}{column['name']} {get_engine_supported_data_type(column['data_type'])}"
                 if column["is_primary_key"]:
                     column_ddl += " PRIMARY KEY"
@@ -61,6 +80,7 @@ def build_table_ddl(
         ),
         has_calculated_field,
         has_json_field,
+        has_geometry_field,
     )
 
 

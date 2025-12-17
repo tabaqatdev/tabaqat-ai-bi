@@ -18,6 +18,7 @@ from src.pipelines.common import (
     build_table_ddl,
     clean_up_new_lines,
     get_engine_supported_data_type,
+    is_geometry_type,
 )
 from src.utils import trace_cost
 from src.web.v1.services.ask import AskHistory
@@ -103,8 +104,7 @@ def _build_metric_ddl(content: dict) -> str:
     columns_ddl = [
         f"{column['comment']}{column['name']} {get_engine_supported_data_type(column['data_type'])}"
         for column in content["columns"]
-        if column["data_type"].lower()
-        != "unknown"  # quick fix: filtering out UNKNOWN column type
+        if column["data_type"].lower() != "unknown" or is_geometry_type(column["data_type"])
     ]
 
     return (
@@ -243,10 +243,11 @@ def check_using_db_schemas_without_pruning(
     has_calculated_field = False
     has_metric = False
     has_json_field = False
+    has_geometry_field = False
 
     for table_schema in construct_db_schemas:
         if table_schema["type"] == "TABLE":
-            ddl, _has_calculated_field, _has_json_field = build_table_ddl(table_schema)
+            ddl, _has_calculated_field, _has_json_field, _has_geometry_field = build_table_ddl(table_schema)
             retrieval_results.append(
                 {
                     "table_name": table_schema["name"],
@@ -257,6 +258,8 @@ def check_using_db_schemas_without_pruning(
                 has_calculated_field = True
             if _has_json_field:
                 has_json_field = True
+            if _has_geometry_field:
+                has_geometry_field = True
 
     for document in dbschema_retrieval:
         content = ast.literal_eval(document.content)
@@ -288,6 +291,7 @@ def check_using_db_schemas_without_pruning(
             "has_calculated_field": has_calculated_field,
             "has_metric": has_metric,
             "has_json_field": has_json_field,
+            "has_geometry_field": has_geometry_field,
         }
 
     return {
@@ -296,6 +300,7 @@ def check_using_db_schemas_without_pruning(
         "has_calculated_field": has_calculated_field,
         "has_metric": has_metric,
         "has_json_field": has_json_field,
+        "has_geometry_field": has_geometry_field,
     }
 
 
@@ -361,10 +366,11 @@ def construct_retrieval_results(
         has_calculated_field = False
         has_metric = False
         has_json_field = False
+        has_geometry_field = False
 
         for table_schema in construct_db_schemas:
             if table_schema["type"] == "TABLE" and table_schema["name"] in tables:
-                ddl, _has_calculated_field, _has_json_field = build_table_ddl(
+                ddl, _has_calculated_field, _has_json_field, _has_geometry_field = build_table_ddl(
                     table_schema,
                     columns=set(
                         columns_and_tables_needed[table_schema["name"]]["columns"]
@@ -375,6 +381,8 @@ def construct_retrieval_results(
                     has_calculated_field = True
                 if _has_json_field:
                     has_json_field = True
+                if _has_geometry_field:
+                    has_geometry_field = True
 
                 retrieval_results.append(
                     {
@@ -408,6 +416,7 @@ def construct_retrieval_results(
             "has_calculated_field": has_calculated_field,
             "has_metric": has_metric,
             "has_json_field": has_json_field,
+            "has_geometry_field": has_geometry_field,
         }
     else:
         retrieval_results = check_using_db_schemas_without_pruning["db_schemas"]
@@ -419,6 +428,7 @@ def construct_retrieval_results(
             ],
             "has_metric": check_using_db_schemas_without_pruning["has_metric"],
             "has_json_field": check_using_db_schemas_without_pruning["has_json_field"],
+            "has_geometry_field": check_using_db_schemas_without_pruning["has_geometry_field"],
         }
 
 

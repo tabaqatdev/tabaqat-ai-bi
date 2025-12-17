@@ -23,9 +23,11 @@ ENV VIRTUAL_ENV=/app/.venv \
 
 COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
-COPY src src
+WORKDIR /app
+
+COPY src /app/src
 COPY entrypoint.sh /app/entrypoint.sh
-COPY pyproject.toml pyproject.toml
+COPY pyproject.toml /app/pyproject.toml
 RUN chmod +x /app/entrypoint.sh
 
 ENTRYPOINT [ "/app/entrypoint.sh" ]

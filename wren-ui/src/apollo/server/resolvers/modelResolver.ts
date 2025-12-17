@@ -901,7 +901,9 @@ export class ModelResolver {
     const modelColumns = await ctx.modelColumnRepository.findColumnsByModelIds([
       model.id,
     ]);
-    const sql = `select ${getPreviewColumnsStr(modelColumns)} from "${model.referenceName}"`;
+    // Exclude geometry columns for PostgreSQL to avoid geoarrow dependency in Ibis
+    const excludeGeometry = project.type === DataSourceName.POSTGRES;
+    const sql = `select ${getPreviewColumnsStr(modelColumns, excludeGeometry)} from "${model.referenceName}"`;
 
     const data = (await ctx.queryService.preview(sql, {
       project,

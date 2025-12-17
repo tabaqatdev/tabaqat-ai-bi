@@ -383,9 +383,25 @@ export class WrenEngineAdaptor implements IWrenEngineAdaptor {
         };
         acc.push(table);
       }
+      // Normalize geometry types to GEOMETRY
+      let normalizedType = data_type;
+      const lowerType = data_type?.toLowerCase() || '';
+      if (
+        lowerType.includes('geometry') ||
+        lowerType.includes('geography') ||
+        lowerType === 'point' ||
+        lowerType === 'linestring' ||
+        lowerType === 'polygon' ||
+        lowerType === 'multipoint' ||
+        lowerType === 'multilinestring' ||
+        lowerType === 'multipolygon' ||
+        lowerType === 'geometrycollection'
+      ) {
+        normalizedType = 'GEOMETRY';
+      }
       table.columns.push({
         name: column_name,
-        type: data_type,
+        type: normalizedType,
         notNull: is_nullable.toLocaleLowerCase() !== 'yes',
         description: '',
         properties: {},

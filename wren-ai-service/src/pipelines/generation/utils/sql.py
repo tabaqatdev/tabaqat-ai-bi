@@ -11,6 +11,7 @@ from src.core.engine import (
     Engine,
     clean_generation_result,
 )
+from src.pipelines.retrieval.sql_knowledge import SqlKnowledge
 from src.web.v1.services.ask import AskHistory
 
 logger = logging.getLogger("wren-ai-service")
@@ -162,34 +163,7 @@ class SQLGenPostProcessor:
         return valid_generation_result, invalid_generation_result
 
 
-sql_generation_reasoning_system_prompt = """
-### TASK ###
-You are a helpful data analyst who is great at thinking deeply and reasoning about the user's question and the database schema, and you provide a step-by-step reasoning plan in order to answer the user's question.
-
-### INSTRUCTIONS ###
-1. Think deeply and reason about the user's question, the database schema, and the user's query history if provided.
-2. Explicitly state the following information in the reasoning plan: 
-if the user puts any specific timeframe(e.g. YYYY-MM-DD) in the user's question(excluding the value of the current time), you will put the absolute time frame in the SQL query; 
-otherwise, you will put the relative timeframe in the SQL query.
-3. For the ranking problem(e.g. "top x", "bottom x", "first x", "last x"), you must use the ranking function, `DENSE_RANK()` to rank the results and then use `WHERE` clause to filter the results.
-4. For the ranking problem(e.g. "top x", "bottom x", "first x", "last x"), you must add the ranking column to the final SELECT clause.
-5. If USER INSTRUCTIONS section is provided, make sure to consider them in the reasoning plan.
-6. If SQL SAMPLES section is provided, make sure to consider them in the reasoning plan.
-7. Give a step by step reasoning plan in order to answer user's question.
-8. The reasoning plan should be in the language same as the language user provided in the input.
-9. Don't include SQL in the reasoning plan.
-10. Each step in the reasoning plan must start with a number, a title(in bold format in markdown), and a reasoning for the step.
-11. Do not include ```markdown or ``` in the answer.
-12. A table name in the reasoning plan must be in this format: `table: <table_name>`.
-13. A column name in the reasoning plan must be in this format: `column: <table_name>.<column_name>`.
-14. ONLY SHOWING the reasoning plan in bullet points.
-
-### FINAL ANSWER FORMAT ###
-The final answer must be a reasoning plan in plain Markdown string format
-"""
-
-
-TEXT_TO_SQL_RULES = """
+_DEFAULT_TEXT_TO_SQL_RULES = """
 ### SQL RULES ###
 - ONLY USE SELECT statements, NO DELETE, UPDATE OR INSERT etc. statements that might change the data in the database.
 - ONLY USE the tables and columns mentioned in the database schema.
@@ -248,30 +222,8 @@ TEXT_TO_SQL_RULES = """
 - For the ranking problem, you must add the ranking column to the final SELECT clause.
 """
 
-sql_generation_system_prompt = f"""
-You are a helpful assistant that converts natural language queries into ANSI SQL queries.
 
-Given user's question, database schema, etc., you should think deeply and carefully and generate the SQL query based on the given reasoning plan step by step.
-
-### GENERAL RULES ###
-
-1. YOU MUST FOLLOW the instructions strictly to generate the SQL query if the section of USER INSTRUCTIONS is available in user's input.
-2. YOU MUST ONLY CHOOSE the appropriate functions from the sql functions list and use them in the SQL query if the section of SQL FUNCTIONS is available in user's input.
-3. YOU MUST REFER to the sql samples and learn the usage of the schema structures and how SQL is written based on them if the section of SQL SAMPLES is available in user's input.
-4. YOU MUST FOLLOW the reasoning plan step by step strictly to generate the SQL query if the section of REASONING PLAN is available in user's input.
-5. YOU MUST FOLLOW SQL Rules if they are not contradicted with instructions.
-
-{TEXT_TO_SQL_RULES}
-
-### FINAL ANSWER FORMAT ###
-The final answer must be a ANSI SQL query in JSON format:
-
-{{
-    "sql": <SQL_QUERY_STRING>
-}}
-"""
-
-calculated_field_instructions = """
+_DEFAULT_CALCULATED_FIELD_INSTRUCTIONS = """
 #### Instructions for Calculated Field ####
 
 The first structure is the special column marked as "Calculated Field". You need to interpret the purpose and calculation basis for these columns, then utilize them in the following text-to-sql generation tasks.
@@ -318,7 +270,7 @@ So utilize those Calculated Fields in the SQL generation process to give an answ
 SQL Query: SELECT AVG(Rating) FROM orders WHERE ReviewCount > 10
 """
 
-metric_instructions = """
+_DEFAULT_METRIC_INSTRUCTIONS = """
 #### Instructions for Metric ####
 
 Second, you will learn how to effectively utilize the special "metric" structure in text-to-SQL generation tasks.
@@ -409,7 +361,114 @@ WHERE
   PurchaseTimestamp < DATE_TRUNC('month', CURRENT_DATE)
 """
 
-json_field_instructions = """
+_DEFAULT_GEOMETRY_FIELD_INSTRUCTIONS = """
+#### Instructions for Geometry/PostGIS Fields ####
+
+**MANDATORY REQUIREMENT**: When ANY table in the query has a geometry column (GEOMETRY type), you MUST include geometry data in the final SELECT output. This is NON-NEGOTIABLE.
+
+When working with geometry columns (GEOMETRY type) in PostGIS-enabled databases, follow these guidelines:
+
+### SPATIAL FUNCTIONS ###
+Use PostGIS spatial functions for geographic queries:
+
+1. **Distance Calculations**:
+   - ST_Distance(geom1, geom2) - Returns distance between two geometries
+   - ST_DWithin(geom1, geom2, distance) - Returns true if geometries are within specified distance
+   - ST_DistanceSphere(point1, point2) - Returns distance in meters for geographic coordinates
+
+2. **Spatial Relationships**:
+   - ST_Contains(geomA, geomB) - Returns true if A contains B
+   - ST_Within(geomA, geomB) - Returns true if A is within B
+   - ST_Intersects(geomA, geomB) - Returns true if geometries intersect
+   - ST_Crosses(geomA, geomB) - Returns true if geometries cross
+   - ST_Overlaps(geomA, geomB) - Returns true if geometries overlap
+   - ST_Touches(geomA, geomB) - Returns true if geometries touch
+
+3. **Geometry Constructors**:
+   - ST_Point(longitude, latitude) - Creates a point geometry
+   - ST_MakePoint(x, y) - Creates a point from coordinates
+   - ST_GeomFromText('POINT(lon lat)', 4326) - Creates geometry from WKT
+   - ST_SetSRID(geom, 4326) - Sets the SRID (coordinate system)
+
+4. **Geometry Output**:
+   - ST_AsGeoJSON(geom) - Converts geometry to GeoJSON format (REQUIRED for map visualization)
+   - ST_AsText(geom) - Converts geometry to WKT format
+   - ST_X(point) - Extracts X coordinate (longitude) from a point
+   - ST_Y(point) - Extracts Y coordinate (latitude) from a point
+
+5. **Geometry Transformations**:
+   - ST_Transform(geom, srid) - Transforms geometry to different coordinate system
+   - ST_Centroid(geom) - Returns centroid of a geometry
+   - ST_Buffer(geom, distance) - Creates buffer around geometry
+   - ST_Simplify(geom, tolerance) - Simplifies geometry
+
+6. **Aggregation**:
+   - ST_Collect(geom) - Aggregates geometries into a collection
+   - ST_Union(geom) - Combines geometries into one
+   - ST_Extent(geom) - Returns bounding box of geometries
+
+### CRITICAL RULES - MUST FOLLOW ###
+1. **ALWAYS** include geometry in the final SELECT: For ANY query involving tables with geometry columns, the final output MUST include `ST_AsGeoJSON("geometry") as geometry` or use `ST_Collect()` for aggregated results.
+2. **For GROUP BY queries**: When aggregating data from tables with geometry, use `ST_Collect("geometry")` to aggregate geometries, then wrap with `ST_AsGeoJSON()`: `ST_AsGeoJSON(ST_Collect("geometry")) as geometry`
+3. **For JOIN queries**: Include geometry from the appropriate table in the final SELECT.
+4. **NEVER omit geometry**: Even if the user's question doesn't mention maps or locations, ALWAYS include geometry data if the source table has it.
+5. USE ST_SetSRID() to ensure proper coordinate system (4326 for WGS84/GPS coordinates)
+6. For distance queries with geographic data, prefer ST_DistanceSphere() or ST_DWithin() with geography type
+
+### EXAMPLES ###
+
+Example 1: Query any table with geometry - ALWAYS include geometry
+```sql
+SELECT "id", "name", "status", ST_AsGeoJSON("geometry") as geometry
+FROM "emergency_reports"
+WHERE "status" = 'active'
+```
+
+Example 2: Aggregation query with geometry (e.g., "most affected regions")
+```sql
+SELECT "region_en", COUNT(*) as incident_count, SUM("report_count") as total_reports,
+       ST_AsGeoJSON(ST_Collect("geometry")) as geometry
+FROM "emergency_impacted_area"
+GROUP BY "region_en"
+ORDER BY total_reports DESC
+```
+
+Example 3: Ranking query with geometry (e.g., "top regions by impact")
+```sql
+WITH ranked AS (
+  SELECT "region_en", SUM("report_count") as total_reports,
+         ST_AsGeoJSON(ST_Collect("geometry")) as geometry,
+         DENSE_RANK() OVER (ORDER BY SUM("report_count") DESC) as rank
+  FROM "emergency_impacted_area"
+  GROUP BY "region_en"
+)
+SELECT * FROM ranked WHERE rank <= 10
+```
+
+Example 4: Find all locations within 1000 meters of a point
+```sql
+SELECT "name", ST_AsGeoJSON("location") as geometry
+FROM "places"
+WHERE ST_DWithin("location"::geography, ST_SetSRID(ST_MakePoint(-73.9857, 40.7484), 4326)::geography, 1000)
+```
+
+Example 5: Calculate distance between locations (still include geometry for map)
+```sql
+SELECT "name", ST_DistanceSphere("location", ST_SetSRID(ST_MakePoint(-73.9857, 40.7484), 4326)) as distance_meters, ST_AsGeoJSON("location") as geometry
+FROM "places"
+ORDER BY distance_meters
+LIMIT 10
+```
+
+Example 6: Show all emergency report locations on a map
+```sql
+SELECT "id", "incident_location", "address_english", ST_AsGeoJSON("geometry") as geometry
+FROM "emergency_general_reports"
+WHERE "geometry" IS NOT NULL
+```
+"""
+
+_DEFAULT_JSON_FIELD_INSTRUCTIONS = """
 #### Instructions for JSON related functions ####
 - ONLY USE JSON_QUERY for querying fields if "json_type":"JSON" is identified in the columns comment, NOT the deprecated JSON_EXTRACT_SCALAR function.
     - DON'T USE CAST for JSON fields, ONLY USE the following funtions:
@@ -472,16 +531,115 @@ Learn about the usage of the schema structures and generate SQL based on them.
 """
 
 
-def construct_instructions(
-    instructions: list[dict] | None = None,
-):
-    _instructions = []
-    if instructions:
-        _instructions += [
-            instruction.get("instruction") for instruction in instructions
-        ]
+sql_generation_reasoning_system_prompt = """
+### TASK ###
+You are a helpful data analyst who is great at thinking deeply and reasoning about the user's question and the database schema, and you provide a step-by-step reasoning plan in order to answer the user's question.
 
-    return _instructions
+### INSTRUCTIONS ###
+1. Think deeply and reason about the user's question, the database schema, and the user's query history if provided.
+2. Explicitly state the following information in the reasoning plan: 
+if the user puts any specific timeframe(e.g. YYYY-MM-DD) in the user's question(excluding the value of the current time), you will put the absolute time frame in the SQL query; 
+otherwise, you will put the relative timeframe in the SQL query.
+3. For the ranking problem(e.g. "top x", "bottom x", "first x", "last x"), you must use the ranking function, `DENSE_RANK()` to rank the results and then use `WHERE` clause to filter the results.
+4. For the ranking problem(e.g. "top x", "bottom x", "first x", "last x"), you must add the ranking column to the final SELECT clause.
+5. If USER INSTRUCTIONS section is provided, make sure to consider them in the reasoning plan.
+6. If SQL SAMPLES section is provided, make sure to consider them in the reasoning plan.
+7. Give a step by step reasoning plan in order to answer user's question.
+8. The reasoning plan should be in the language same as the language user provided in the input.
+9. Don't include SQL in the reasoning plan.
+10. Each step in the reasoning plan must start with a number, a title(in bold format in markdown), and a reasoning for the step.
+11. Do not include ```markdown or ``` in the answer.
+12. A table name in the reasoning plan must be in this format: `table: <table_name>`.
+13. A column name in the reasoning plan must be in this format: `column: <table_name>.<column_name>`.
+14. ONLY SHOWING the reasoning plan in bullet points.
+
+### FINAL ANSWER FORMAT ###
+The final answer must be a reasoning plan in plain Markdown string format
+"""
+
+
+def _extract_from_sql_knowledge(
+    sql_knowledge: SqlKnowledge | None, attribute_name: str, default_value: str
+) -> str:
+    if sql_knowledge is None:
+        return default_value
+
+    value = getattr(sql_knowledge, attribute_name, "")
+    return value if value and value.strip() else default_value
+
+
+def get_text_to_sql_rules(sql_knowledge: SqlKnowledge | None = None) -> str:
+    if sql_knowledge is not None:
+        return _extract_from_sql_knowledge(
+            sql_knowledge, "text_to_sql_rule", _DEFAULT_TEXT_TO_SQL_RULES
+        )
+
+    return _DEFAULT_TEXT_TO_SQL_RULES
+
+
+def get_calculated_field_instructions(sql_knowledge: SqlKnowledge | None = None) -> str:
+    if sql_knowledge is not None:
+        return _extract_from_sql_knowledge(
+            sql_knowledge,
+            "calculated_field_instructions",
+            _DEFAULT_CALCULATED_FIELD_INSTRUCTIONS,
+        )
+
+    return _DEFAULT_CALCULATED_FIELD_INSTRUCTIONS
+
+
+def get_metric_instructions(sql_knowledge: SqlKnowledge | None = None) -> str:
+    if sql_knowledge is not None:
+        return _extract_from_sql_knowledge(
+            sql_knowledge, "metric_instructions", _DEFAULT_METRIC_INSTRUCTIONS
+        )
+
+    return _DEFAULT_METRIC_INSTRUCTIONS
+
+
+def get_json_field_instructions(sql_knowledge: SqlKnowledge | None = None) -> str:
+    if sql_knowledge is not None:
+        return _extract_from_sql_knowledge(
+            sql_knowledge, "json_field_instructions", _DEFAULT_JSON_FIELD_INSTRUCTIONS
+        )
+
+    return _DEFAULT_JSON_FIELD_INSTRUCTIONS
+
+
+def get_geometry_field_instructions(sql_knowledge: SqlKnowledge | None = None) -> str:
+    if sql_knowledge is not None:
+        return _extract_from_sql_knowledge(
+            sql_knowledge, "geometry_field_instructions", _DEFAULT_GEOMETRY_FIELD_INSTRUCTIONS
+        )
+
+    return _DEFAULT_GEOMETRY_FIELD_INSTRUCTIONS
+
+
+def get_sql_generation_system_prompt(sql_knowledge: SqlKnowledge | None = None) -> str:
+    text_to_sql_rules = get_text_to_sql_rules(sql_knowledge)
+
+    return f"""
+You are a helpful assistant that converts natural language queries into ANSI SQL queries.
+
+Given user's question, database schema, etc., you should think deeply and carefully and generate the SQL query based on the given reasoning plan step by step.
+
+### GENERAL RULES ###
+
+1. YOU MUST FOLLOW the instructions strictly to generate the SQL query if the section of USER INSTRUCTIONS is available in user's input.
+2. YOU MUST ONLY CHOOSE the appropriate functions from the sql functions list and use them in the SQL query if the section of SQL FUNCTIONS is available in user's input.
+3. YOU MUST REFER to the sql samples and learn the usage of the schema structures and how SQL is written based on them if the section of SQL SAMPLES is available in user's input.
+4. YOU MUST FOLLOW the reasoning plan step by step strictly to generate the SQL query if the section of REASONING PLAN is available in user's input.
+5. YOU MUST FOLLOW SQL Rules if they are not contradicted with instructions.
+
+{text_to_sql_rules}
+
+### FINAL ANSWER FORMAT ###
+The final answer must be a ANSI SQL query in JSON format:
+
+{{
+    "sql": <SQL_QUERY_STRING>
+}}
+"""
 
 
 class SqlGenerationResult(BaseModel):
@@ -497,6 +655,18 @@ SQL_GENERATION_MODEL_KWARGS = {
         },
     }
 }
+
+
+def construct_instructions(
+    instructions: list[dict] | None = None,
+):
+    _instructions = []
+    if instructions:
+        _instructions += [
+            instruction.get("instruction") for instruction in instructions
+        ]
+
+    return _instructions
 
 
 def construct_ask_history_messages(

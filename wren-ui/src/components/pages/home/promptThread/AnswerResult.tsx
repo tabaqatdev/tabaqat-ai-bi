@@ -6,6 +6,7 @@ import styled from 'styled-components';
 import CheckCircleFilled from '@ant-design/icons/CheckCircleFilled';
 import CodeFilled from '@ant-design/icons/CodeFilled';
 import PieChartFilled from '@ant-design/icons/PieChartFilled';
+import EnvironmentFilled from '@ant-design/icons/EnvironmentFilled';
 import MessageOutlined from '@ant-design/icons/MessageOutlined';
 import ShareAltOutlined from '@ant-design/icons/ShareAltOutlined';
 import { RobotSVG } from '@/utils/svgs';
@@ -22,6 +23,7 @@ import TextBasedAnswer, {
   getAnswerIsFinished,
 } from '@/components/pages/home/promptThread/TextBasedAnswer';
 import ChartAnswer from '@/components/pages/home/promptThread/ChartAnswer';
+import MapAnswer from '@/components/pages/home/promptThread/MapAnswer';
 import Preparation from '@/components/pages/home/preparation';
 import {
   AskingTaskStatus,
@@ -83,6 +85,10 @@ const StyledTabs = styled(Tabs)`
       color: var(--gray-5);
     }
 
+    [aria-label='environment'] {
+      color: var(--gray-5);
+    }
+
     &.ant-tabs-tab-active {
       .ant-typography {
         color: var(--gray-8);
@@ -98,6 +104,10 @@ const StyledTabs = styled(Tabs)`
 
       [aria-label='pie-chart'] {
         color: var(--gold-6);
+      }
+
+      [aria-label='environment'] {
+        color: var(--cyan-6);
       }
 
       .adm-beta-tag {
@@ -331,6 +341,19 @@ export default function AnswerResult(props: Props) {
               }
             >
               <ChartAnswer {...props} />
+            </Tabs.TabPane>
+            <Tabs.TabPane
+              key="map"
+              tab={
+                <div className="select-none">
+                  <EnvironmentFilled className="mr-2" />
+                  <Text>
+                    Map<Tag className="adm-beta-tag">Beta</Tag>
+                  </Text>
+                </div>
+              }
+            >
+              <MapAnswer {...props} />
             </Tabs.TabPane>
           </StyledTabs>
           <div className="mt-2 d-flex align-center">
