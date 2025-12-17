@@ -246,13 +246,38 @@ export class QueryService implements IQueryService {
     }
   }
 
+  private isGeometryColumnName(columnName: string): boolean {
+    const lowerName = columnName.toLowerCase();
+    const geometryNames = ['geom', 'geometry', 'geojson', 'geo', 'location', 'coordinates', 'shape', 'boundary', 'path', 'point', 'polygon', 'linestring'];
+    return geometryNames.some(name => lowerName.includes(name));
+  }
+
   private transformDataType(data: IbisQueryResponse): PreviewDataResponse {
     const columns = data.columns;
     const dtypes = data.dtypes;
     const transformedColumns = columns.map((column) => {
       let type = 'unknown';
       if (dtypes && dtypes[column]) {
-        type = dtypes[column] === 'object' ? 'string' : dtypes[column];
+        const dtype = dtypes[column].toLowerCase();
+        // Handle geometry/PostGIS types
+        if (
+          dtype.includes('geometry') ||
+          dtype.includes('geography') ||
+          dtype === 'point' ||
+          dtype === 'linestring' ||
+          dtype === 'polygon' ||
+          dtype === 'multipoint' ||
+          dtype === 'multilinestring' ||
+          dtype === 'multipolygon' ||
+          dtype === 'geometrycollection'
+        ) {
+          type = 'GEOMETRY';
+        } else if (dtype === 'object' && this.isGeometryColumnName(column)) {
+          // If dtype is 'object' but column name suggests geometry, treat as GEOMETRY
+          type = 'GEOMETRY';
+        } else {
+          type = dtypes[column] === 'object' ? 'string' : dtypes[column];
+        }
       }
       if (type === 'unknown') {
         logger.debug(`Did not find type mapping for "${column}"`);
