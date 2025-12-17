@@ -18,7 +18,7 @@ services:
     command: /bin/sh /app/init.sh
 
   wren-engine:
-    image: ghcr.io/canner/wren-engine:${WREN_ENGINE_VERSION}
+    image: ghcr.io/tabaqatdev/wren-engine:latest
     restart: on-failure
     platform: ${PLATFORM}
     expose:
