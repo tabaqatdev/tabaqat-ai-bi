@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Alert, Button, Skeleton, Typography } from 'antd';
 import ReloadOutlined from '@ant-design/icons/ReloadOutlined';
 import LoadingOutlined from '@ant-design/icons/LoadingOutlined';
@@ -18,6 +19,11 @@ import { AdjustAnswerDropdown } from '@/components/diagram/CustomDropdown';
 import { usePreviewDataMutation } from '@/apollo/client/graphql/home.generated';
 import { ThreadResponseAnswerStatus } from '@/apollo/client/graphql/__types__';
 
+const MapView = dynamic(() => import('@/components/map'), {
+  ssr: false,
+  loading: () => <Skeleton active paragraph={{ rows: 6 }} title={false} />,
+});
+
 const { Text } = Typography;
 
 const StyledSkeleton = styled(Skeleton)`
@@ -26,6 +32,32 @@ const StyledSkeleton = styled(Skeleton)`
     margin-bottom: 0;
   }
 `;
+
+// Helper function to check if data can be displayed on a map
+const canDisplayOnMap = (columns: { name: string; type: string }[]): boolean => {
+  if (!columns) return false;
+  
+  // Check for geometry columns
+  const hasGeometry = columns.some(
+    (col) =>
+      col.type?.toUpperCase() === 'GEOMETRY' ||
+      col.type?.toUpperCase() === 'GEOGRAPHY' ||
+      col.name?.toLowerCase().includes('geojson') ||
+      col.name?.toLowerCase().includes('geometry') ||
+      col.name?.toLowerCase().includes('geom')
+  );
+  if (hasGeometry) return true;
+  
+  // Check for lat/long columns
+  const colNames = columns.map((col) => col.name?.toLowerCase());
+  const hasLat = colNames.some((name) => 
+    name === 'lat' || name === 'latitude' || name === 'y' || name?.includes('lat')
+  );
+  const hasLong = colNames.some((name) => 
+    name === 'long' || name === 'lng' || name === 'longitude' || name === 'x' || name?.includes('lon')
+  );
+  return hasLat && hasLong;
+};
 
 export const getAnswerIsFinished = (status: ThreadResponseAnswerStatus) =>
   [
@@ -117,6 +149,13 @@ export default function TextBasedAnswer(props: AnswerResultProps) {
     onError: (error) => console.error(error),
   });
   const hasPreviewData = !!previewDataResult.data?.previewData;
+  
+  // Check if data can be displayed on a map
+  const showMapView = useMemo(() => {
+    const columns = previewDataResult.data?.previewData?.columns || [];
+    const data = previewDataResult.data?.previewData?.data || [];
+    return canDisplayOnMap(columns) && data.length > 0;
+  }, [previewDataResult.data]);
 
   const onPreviewData = async () => {
     await previewData({ variables: { where: { responseId: id } } });
@@ -246,15 +285,28 @@ export default function TextBasedAnswer(props: AnswerResultProps) {
             <div className="mt-2 mb-3" data-guideid="text-answer-preview-data">
               {hasPreviewData && (
                 <Text type="secondary" className="text-sm">
-                  Considering the limit of the context window, we retrieve up to
-                  500 rows of results to generate the answer.
+                  {showMapView 
+                    ? `Displaying ${previewDataResult.data?.previewData?.data?.length || 0} locations on the map.`
+                    : 'Considering the limit of the context window, we retrieve up to 500 rows of results to generate the answer.'
+                  }
                 </Text>
               )}
-              <PreviewData
-                error={previewDataResult.error}
-                loading={previewDataResult.loading}
-                previewData={previewDataResult?.data?.previewData}
-              />
+              {showMapView ? (
+                <div style={{ marginTop: 16 }}>
+                  <MapView
+                    data={previewDataResult.data?.previewData?.data || []}
+                    columns={previewDataResult.data?.previewData?.columns || []}
+                    width="100%"
+                    height={400}
+                  />
+                </div>
+              ) : (
+                <PreviewData
+                  error={previewDataResult.error}
+                  loading={previewDataResult.loading}
+                  previewData={previewDataResult?.data?.previewData}
+                />
+              )}
             </div>
           </div>
         ) : (
