@@ -361,6 +361,113 @@ WHERE
   PurchaseTimestamp < DATE_TRUNC('month', CURRENT_DATE)
 """
 
+_DEFAULT_GEOMETRY_FIELD_INSTRUCTIONS = """
+#### Instructions for Geometry/PostGIS Fields ####
+
+**MANDATORY REQUIREMENT**: When ANY table in the query has a geometry column (GEOMETRY type), you MUST include geometry data in the final SELECT output. This is NON-NEGOTIABLE.
+
+When working with geometry columns (GEOMETRY type) in PostGIS-enabled databases, follow these guidelines:
+
+### SPATIAL FUNCTIONS ###
+Use PostGIS spatial functions for geographic queries:
+
+1. **Distance Calculations**:
+   - ST_Distance(geom1, geom2) - Returns distance between two geometries
+   - ST_DWithin(geom1, geom2, distance) - Returns true if geometries are within specified distance
+   - ST_DistanceSphere(point1, point2) - Returns distance in meters for geographic coordinates
+
+2. **Spatial Relationships**:
+   - ST_Contains(geomA, geomB) - Returns true if A contains B
+   - ST_Within(geomA, geomB) - Returns true if A is within B
+   - ST_Intersects(geomA, geomB) - Returns true if geometries intersect
+   - ST_Crosses(geomA, geomB) - Returns true if geometries cross
+   - ST_Overlaps(geomA, geomB) - Returns true if geometries overlap
+   - ST_Touches(geomA, geomB) - Returns true if geometries touch
+
+3. **Geometry Constructors**:
+   - ST_Point(longitude, latitude) - Creates a point geometry
+   - ST_MakePoint(x, y) - Creates a point from coordinates
+   - ST_GeomFromText('POINT(lon lat)', 4326) - Creates geometry from WKT
+   - ST_SetSRID(geom, 4326) - Sets the SRID (coordinate system)
+
+4. **Geometry Output**:
+   - ST_AsGeoJSON(geom) - Converts geometry to GeoJSON format (REQUIRED for map visualization)
+   - ST_AsText(geom) - Converts geometry to WKT format
+   - ST_X(point) - Extracts X coordinate (longitude) from a point
+   - ST_Y(point) - Extracts Y coordinate (latitude) from a point
+
+5. **Geometry Transformations**:
+   - ST_Transform(geom, srid) - Transforms geometry to different coordinate system
+   - ST_Centroid(geom) - Returns centroid of a geometry
+   - ST_Buffer(geom, distance) - Creates buffer around geometry
+   - ST_Simplify(geom, tolerance) - Simplifies geometry
+
+6. **Aggregation**:
+   - ST_Collect(geom) - Aggregates geometries into a collection
+   - ST_Union(geom) - Combines geometries into one
+   - ST_Extent(geom) - Returns bounding box of geometries
+
+### CRITICAL RULES - MUST FOLLOW ###
+1. **ALWAYS** include geometry in the final SELECT: For ANY query involving tables with geometry columns, the final output MUST include `ST_AsGeoJSON("geometry") as geometry` or use `ST_Collect()` for aggregated results.
+2. **For GROUP BY queries**: When aggregating data from tables with geometry, use `ST_Collect("geometry")` to aggregate geometries, then wrap with `ST_AsGeoJSON()`: `ST_AsGeoJSON(ST_Collect("geometry")) as geometry`
+3. **For JOIN queries**: Include geometry from the appropriate table in the final SELECT.
+4. **NEVER omit geometry**: Even if the user's question doesn't mention maps or locations, ALWAYS include geometry data if the source table has it.
+5. USE ST_SetSRID() to ensure proper coordinate system (4326 for WGS84/GPS coordinates)
+6. For distance queries with geographic data, prefer ST_DistanceSphere() or ST_DWithin() with geography type
+
+### EXAMPLES ###
+
+Example 1: Query any table with geometry - ALWAYS include geometry
+```sql
+SELECT "id", "name", "status", ST_AsGeoJSON("geometry") as geometry
+FROM "emergency_reports"
+WHERE "status" = 'active'
+```
+
+Example 2: Aggregation query with geometry (e.g., "most affected regions")
+```sql
+SELECT "region_en", COUNT(*) as incident_count, SUM("report_count") as total_reports,
+       ST_AsGeoJSON(ST_Collect("geometry")) as geometry
+FROM "emergency_impacted_area"
+GROUP BY "region_en"
+ORDER BY total_reports DESC
+```
+
+Example 3: Ranking query with geometry (e.g., "top regions by impact")
+```sql
+WITH ranked AS (
+  SELECT "region_en", SUM("report_count") as total_reports,
+         ST_AsGeoJSON(ST_Collect("geometry")) as geometry,
+         DENSE_RANK() OVER (ORDER BY SUM("report_count") DESC) as rank
+  FROM "emergency_impacted_area"
+  GROUP BY "region_en"
+)
+SELECT * FROM ranked WHERE rank <= 10
+```
+
+Example 4: Find all locations within 1000 meters of a point
+```sql
+SELECT "name", ST_AsGeoJSON("location") as geometry
+FROM "places"
+WHERE ST_DWithin("location"::geography, ST_SetSRID(ST_MakePoint(-73.9857, 40.7484), 4326)::geography, 1000)
+```
+
+Example 5: Calculate distance between locations (still include geometry for map)
+```sql
+SELECT "name", ST_DistanceSphere("location", ST_SetSRID(ST_MakePoint(-73.9857, 40.7484), 4326)) as distance_meters, ST_AsGeoJSON("location") as geometry
+FROM "places"
+ORDER BY distance_meters
+LIMIT 10
+```
+
+Example 6: Show all emergency report locations on a map
+```sql
+SELECT "id", "incident_location", "address_english", ST_AsGeoJSON("geometry") as geometry
+FROM "emergency_general_reports"
+WHERE "geometry" IS NOT NULL
+```
+"""
+
 _DEFAULT_JSON_FIELD_INSTRUCTIONS = """
 #### Instructions for JSON related functions ####
 - ONLY USE JSON_QUERY for querying fields if "json_type":"JSON" is identified in the columns comment, NOT the deprecated JSON_EXTRACT_SCALAR function.
@@ -497,6 +604,15 @@ def get_json_field_instructions(sql_knowledge: SqlKnowledge | None = None) -> st
         )
 
     return _DEFAULT_JSON_FIELD_INSTRUCTIONS
+
+
+def get_geometry_field_instructions(sql_knowledge: SqlKnowledge | None = None) -> str:
+    if sql_knowledge is not None:
+        return _extract_from_sql_knowledge(
+            sql_knowledge, "geometry_field_instructions", _DEFAULT_GEOMETRY_FIELD_INSTRUCTIONS
+        )
+
+    return _DEFAULT_GEOMETRY_FIELD_INSTRUCTIONS
 
 
 def get_sql_generation_system_prompt(sql_knowledge: SqlKnowledge | None = None) -> str:
