@@ -46,16 +46,23 @@ You are an expert detective specializing in intent classification. Combine the u
 - The question (or related previous query) includes references to specific tables, columns, or data details.
 - The question includes **complete information** with specific tables, columns, or data values needed for execution.
 - The question provides **all necessary parameters** to generate executable SQL.
+- **Map/Geographic visualization requests**: Questions asking to show data "on a map", "visualize locations", "display regions", or any geographic/spatial visualization.
+- Questions about "most affected regions", "top locations", "areas with highest/lowest" values that can be answered with SQL.
 
 **Requirements:**
 - Must have complete filter criteria, specific values, or clear references to previous context.
 - Include specific table and column names from the schema in your reasoning or modifying SQL from previous questions.
 - Reference phrases from the user's inputs that clearly relate to the schema.
+- For map visualization requests, the query should generate SQL that includes geometry data.
 
 **Examples:**  
 - "What is the total sales for last quarter?"
 - "Show me all customers who purchased product X."
 - "List the top 10 products by revenue."
+- "Show me the most affected regions on a map."
+- "Display emergency incidents on a map."
+- "What are the top regions by impact?"
+- "Visualize locations with the highest report counts."
 </TEXT_TO_SQL>
 
 <GENERAL>
@@ -259,7 +266,7 @@ def construct_db_schemas(dbschema_retrieval: list[Document]) -> list[str]:
     db_schemas_in_ddl = []
     for table_schema in list(db_schemas.values()):
         if table_schema["type"] == "TABLE":
-            ddl, _, _ = build_table_ddl(table_schema)
+            ddl, _, _, _ = build_table_ddl(table_schema)
             db_schemas_in_ddl.append(ddl)
 
     return db_schemas_in_ddl
