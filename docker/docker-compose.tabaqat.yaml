@@ -33,7 +33,7 @@ services:
       - bootstrap
 
   ibis-server:
-    image: ghcr.io/canner/wren-engine-ibis:${IBIS_SERVER_VERSION}
+    image: ghcr.io/tabaqatdev/wren-engine-ibis:latest
     restart: on-failure
     platform: ${PLATFORM}
     expose:
