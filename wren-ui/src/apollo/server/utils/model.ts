@@ -6,9 +6,69 @@ import {
 import { replaceAllowableSyntax } from './regex';
 import { CompactColumn } from '@server/services/metadataService';
 
-export function getPreviewColumnsStr(modelColumns: ModelColumn[]) {
+const GEOMETRY_TYPES = [
+  'geometry',
+  'geography',
+  'point',
+  'linestring',
+  'polygon',
+  'multipoint',
+  'multilinestring',
+  'multipolygon',
+  'geometrycollection',
+];
+
+function isGeometryType(type: string, columnName?: string): boolean {
+  // Check by type first
+  if (type) {
+    const lowerType = type.toLowerCase();
+    if (GEOMETRY_TYPES.some(
+      (geoType) => lowerType === geoType || lowerType.includes(geoType)
+    )) {
+      return true;
+    }
+  }
+  // Also check by column name - common geometry column names
+  // This handles cases where type is USER-DEFINED, unknown, or not properly detected
+  if (columnName) {
+    const lowerName = columnName.toLowerCase();
+    const geometryColumnNames = ['geom', 'geometry', 'geography', 'the_geom', 'wkb_geometry', 'shape'];
+    // Exact match or the column name is exactly one of the geometry names
+    if (geometryColumnNames.some(name => lowerName === name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function getPreviewColumnsStr(
+  modelColumns: ModelColumn[],
+  excludeGeometry: boolean = false,
+) {
   if (modelColumns.length === 0) return '*';
-  const columns = modelColumns.map((column) => `"${column.referenceName}"`);
+  const columns = modelColumns
+    .filter((column) => {
+      // Exclude geometry columns if requested (to avoid geoarrow dependency in Ibis)
+      // Check both referenceName and sourceColumnName for geometry detection
+      if (excludeGeometry) {
+        const isGeom = isGeometryType(column.type, column.referenceName) ||
+                       isGeometryType(column.type, column.sourceColumnName);
+        if (isGeom) {
+          return false;
+        }
+      }
+      return true;
+    })
+    .map((column) => `"${column.referenceName}"`);
+  
+  // If all columns were filtered out, return at least one non-geometry column or *
+  if (columns.length === 0) {
+    const nonGeomColumn = modelColumns.find(
+      (col) => !isGeometryType(col.type, col.referenceName) && 
+               !isGeometryType(col.type, col.sourceColumnName)
+    );
+    return nonGeomColumn ? `"${nonGeomColumn.referenceName}"` : '*';
+  }
   return columns.join(',');
 }
 
