@@ -527,6 +527,34 @@ export class IbisAdaptor implements IIbisAdaptor {
     return connectionInfo;
   }
 
+  private normalizeGeometryType(type: string, columnName?: string): string {
+    if (!type) return type;
+    const lowerType = type.toLowerCase();
+    if (
+      lowerType.includes('geometry') ||
+      lowerType.includes('geography') ||
+      lowerType === 'point' ||
+      lowerType === 'linestring' ||
+      lowerType === 'polygon' ||
+      lowerType === 'multipoint' ||
+      lowerType === 'multilinestring' ||
+      lowerType === 'multipolygon' ||
+      lowerType === 'geometrycollection'
+    ) {
+      return 'GEOMETRY';
+    }
+    // PostgreSQL returns USER-DEFINED for PostGIS geometry types
+    // Check column name to detect geometry columns
+    if (lowerType === 'user-defined' && columnName) {
+      const lowerName = columnName.toLowerCase();
+      const geometryNames = ['geom', 'geometry', 'geography', 'location', 'coordinates', 'shape', 'boundary', 'the_geom', 'wkb_geometry'];
+      if (geometryNames.some(name => lowerName.includes(name) || lowerName === name)) {
+        return 'GEOMETRY';
+      }
+    }
+    return type;
+  }
+
   private transformDescriptionToProperties(
     tables: CompactTable[],
   ): CompactTable[] {
@@ -535,10 +563,12 @@ export class IbisAdaptor implements IIbisAdaptor {
       if (column.description) {
         properties.description = column.description;
       }
+      // Normalize geometry types - pass column name for USER-DEFINED type detection
+      const normalizedType = this.normalizeGeometryType(column.type, column.name);
       const nestedColumns = column.nestedColumns?.map((nc) => {
         return handleColumnProperties(nc);
       });
-      return { ...column, properties, nestedColumns };
+      return { ...column, type: normalizedType, properties, nestedColumns };
     };
 
     return tables.map((table) => {
