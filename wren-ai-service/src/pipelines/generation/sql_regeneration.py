@@ -16,6 +16,7 @@ from src.pipelines.generation.utils.sql import (
     SQLGenPostProcessor,
     construct_instructions,
     get_calculated_field_instructions,
+    get_geometry_field_instructions,
     get_json_field_instructions,
     get_metric_instructions,
     get_text_to_sql_rules,
@@ -68,6 +69,10 @@ sql_regeneration_user_prompt_template = """
 {{ json_field_instructions }}
 {% endif %}
 
+{% if geometry_field_instructions %}
+{{ geometry_field_instructions }}
+{% endif %}
+
 {% if sql_functions %}
 ### SQL FUNCTIONS ###
 {% for function in sql_functions %}
@@ -112,6 +117,7 @@ def prompt(
     has_calculated_field: bool = False,
     has_metric: bool = False,
     has_json_field: bool = False,
+    has_geometry_field: bool = False,
     sql_functions: list[SqlFunction] | None = None,
     sql_knowledge: SqlKnowledge | None = None,
 ) -> dict:
@@ -132,6 +138,9 @@ def prompt(
         ),
         json_field_instructions=(
             get_json_field_instructions(sql_knowledge) if has_json_field else ""
+        ),
+        geometry_field_instructions=(
+            get_geometry_field_instructions(sql_knowledge) if has_geometry_field else ""
         ),
         sql_samples=sql_samples,
         sql_functions=sql_functions,
@@ -203,6 +212,7 @@ class SQLRegeneration(BasicPipeline):
         has_calculated_field: bool = False,
         has_metric: bool = False,
         has_json_field: bool = False,
+        has_geometry_field: bool = False,
         sql_functions: list[SqlFunction] | None = None,
         sql_knowledge: SqlKnowledge | None = None,
     ):
@@ -220,6 +230,7 @@ class SQLRegeneration(BasicPipeline):
                 "has_calculated_field": has_calculated_field,
                 "has_metric": has_metric,
                 "has_json_field": has_json_field,
+                "has_geometry_field": has_geometry_field,
                 "sql_functions": sql_functions,
                 "sql_knowledge": sql_knowledge,
                 **self._components,

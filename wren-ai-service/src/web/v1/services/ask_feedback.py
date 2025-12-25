@@ -159,6 +159,7 @@ class AskFeedbackService:
                 )
                 has_metric = _retrieval_result.get("has_metric", False)
                 has_json_field = _retrieval_result.get("has_json_field", False)
+                has_geometry_field = _retrieval_result.get("has_geometry_field", False)
                 documents = _retrieval_result.get("retrieval_results", [])
                 table_ddls = [document.get("table_ddl") for document in documents]
                 sql_samples = sql_samples_task["formatted_output"].get("documents", [])
@@ -184,6 +185,7 @@ class AskFeedbackService:
                     has_calculated_field=has_calculated_field,
                     has_metric=has_metric,
                     has_json_field=has_json_field,
+                    has_geometry_field=has_geometry_field,
                     sql_functions=sql_functions,
                     sql_knowledge=sql_knowledge,
                 )
