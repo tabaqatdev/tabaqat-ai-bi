@@ -105,15 +105,6 @@ export default function MapAnswer(props: AnswerResultProps) {
           description={
             <div>
               <p>The query results do not contain any geometry data that can be displayed on a map.</p>
-              <p className="mt-2">To display data on a map, your query should:</p>
-              <ul className="mt-2">
-                <li>Include a geometry column (GEOMETRY, GEOGRAPHY type)</li>
-                <li>Use <code>ST_AsGeoJSON()</code> to convert geometry to GeoJSON format</li>
-                <li>Include spatial data from PostGIS-enabled tables</li>
-              </ul>
-              <p className="mt-2">
-                <strong>Example:</strong> <code>SELECT name, ST_AsGeoJSON(geom) as geometry FROM locations</code>
-              </p>
             </div>
           }
           showIcon
