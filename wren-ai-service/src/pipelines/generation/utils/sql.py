@@ -364,7 +364,14 @@ WHERE
 _DEFAULT_GEOMETRY_FIELD_INSTRUCTIONS = """
 #### Instructions for Geometry/PostGIS Fields ####
 
-**MANDATORY REQUIREMENT**: When ANY table in the query has a geometry column (GEOMETRY type), you MUST include geometry data in the final SELECT output. This is NON-NEGOTIABLE.
+**MANDATORY REQUIREMENT**: When ANY table in the query has a geometry column (GEOMETRY type), you MUST include geometry data AND all other valuable columns in the final SELECT output. This is NON-NEGOTIABLE.
+
+**COLUMN SELECTION RULES**:
+1. ALWAYS include the geometry column using ST_AsGeoJSON()
+2. ALWAYS include all other valuable columns (names, IDs, descriptions, counts, statuses, dates, etc.)
+3. For any ID columns (foreign keys), resolve them to human-readable names by joining with their respective lookup/reference tables when available
+4. Never return ONLY the geometry column - include contextual data for map popups and reports
+5. Prioritize including descriptive fields that provide meaningful context for spatial visualization
 
 When working with geometry columns (GEOMETRY type) in PostGIS-enabled databases, follow these guidelines:
 
@@ -408,10 +415,13 @@ Use PostGIS spatial functions for geographic queries:
    - ST_Extent(geom) - Returns bounding box of geometries
 
 ### CRITICAL RULES - MUST FOLLOW ###
-1. **ALWAYS** include geometry in the final SELECT: For ANY query involving tables with geometry columns, the final output MUST include `ST_AsGeoJSON("geometry") as geometry` or use `ST_Collect()` for aggregated results.
+1. **ALWAYS include ALL valuable columns**: For ANY query involving tables with geometry columns, the final output MUST include:
+   - Geometry column: `ST_AsGeoJSON("geometry") as geometry`
+   - All other valuable columns: names, IDs, descriptions, counts, statuses, dates, etc.
+   - Resolved human-readable names for any ID/foreign key columns (join with their respective lookup/reference tables when available)
 2. **For GROUP BY queries**: When aggregating data from tables with geometry, use `ST_Collect("geometry")` to aggregate geometries, then wrap with `ST_AsGeoJSON()`: `ST_AsGeoJSON(ST_Collect("geometry")) as geometry`
-3. **For JOIN queries**: Include geometry from the appropriate table in the final SELECT.
-4. **NEVER omit geometry**: Even if the user's question doesn't mention maps or locations, ALWAYS include geometry data if the source table has it.
+3. **For JOIN queries**: Include geometry from the appropriate table in the final SELECT, plus all contextual columns.
+4. **NEVER return only geometry**: Even if the user's question doesn't mention specific fields, ALWAYS include contextual data for map popups and reports.
 5. USE ST_SetSRID() to ensure proper coordinate system (4326 for WGS84/GPS coordinates)
 6. For distance queries with geographic data, prefer ST_DistanceSphere() or ST_DWithin() with geography type
 
