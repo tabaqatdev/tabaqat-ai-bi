@@ -1,6 +1,7 @@
 import { SETTINGS } from '@/utils/enum';
 import DatabaseOutlined from '@ant-design/icons/DatabaseOutlined';
 import ProjectOutlined from '@ant-design/icons/ProjectOutlined';
+import GlobalOutlined from '@ant-design/icons/GlobalOutlined';
 
 export const getSettingMenu = (menu: SETTINGS) =>
   ({
@@ -11,5 +12,9 @@ export const getSettingMenu = (menu: SETTINGS) =>
     [SETTINGS.PROJECT]: {
       icon: ProjectOutlined,
       label: 'Project settings',
+    },
+    [SETTINGS.BASEMAP]: {
+      icon: GlobalOutlined,
+      label: 'Basemap settings',
     },
   })[menu] || null;
