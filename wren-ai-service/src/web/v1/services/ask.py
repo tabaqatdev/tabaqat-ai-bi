@@ -458,6 +458,7 @@ class AskService:
                 )
                 has_metric = _retrieval_result.get("has_metric", False)
                 has_json_field = _retrieval_result.get("has_json_field", False)
+                has_geometry_field = _retrieval_result.get("has_geometry_field", False)
 
                 if histories:
                     text_to_sql_generation_results = await self._pipelines[
@@ -473,6 +474,7 @@ class AskService:
                         has_calculated_field=has_calculated_field,
                         has_metric=has_metric,
                         has_json_field=has_json_field,
+                        has_geometry_field=has_geometry_field,
                         sql_functions=sql_functions,
                         use_dry_plan=use_dry_plan,
                         allow_dry_plan_fallback=allow_dry_plan_fallback,
@@ -491,6 +493,7 @@ class AskService:
                         has_calculated_field=has_calculated_field,
                         has_metric=has_metric,
                         has_json_field=has_json_field,
+                        has_geometry_field=has_geometry_field,
                         sql_functions=sql_functions,
                         use_dry_plan=use_dry_plan,
                         allow_dry_plan_fallback=allow_dry_plan_fallback,

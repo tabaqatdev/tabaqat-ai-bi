@@ -8,6 +8,7 @@ import SettingOutlined from '@ant-design/icons/SettingOutlined';
 import InfoCircleOutlined from '@ant-design/icons/InfoCircleOutlined';
 import DataSourceSettings from './DataSourceSettings';
 import ProjectSettings from './ProjectSettings';
+import BasemapSettings from './BasemapSettings';
 import { getSettingMenu } from './utils';
 import {
   useGetSettingsLazyQuery,
@@ -70,6 +71,7 @@ const DynamicComponent = ({
         />
       ),
       [SETTINGS.PROJECT]: <ProjectSettings data={{ language }} />,
+      [SETTINGS.BASEMAP]: <BasemapSettings />,
     }[menu] || null
   );
 };

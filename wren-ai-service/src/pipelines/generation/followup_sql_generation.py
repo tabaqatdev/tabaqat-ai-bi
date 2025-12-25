@@ -17,6 +17,7 @@ from src.pipelines.generation.utils.sql import (
     construct_ask_history_messages,
     construct_instructions,
     get_calculated_field_instructions,
+    get_geometry_field_instructions,
     get_json_field_instructions,
     get_metric_instructions,
     get_sql_generation_system_prompt,
@@ -49,6 +50,10 @@ generate one SQL query to best answer user's question.
 
 {% if json_field_instructions %}
 {{ json_field_instructions }}
+{% endif %}
+
+{% if geometry_field_instructions %}
+{{ geometry_field_instructions }}
 {% endif %}
 
 {% if sql_functions %}
@@ -97,6 +102,7 @@ def prompt(
     has_calculated_field: bool = False,
     has_metric: bool = False,
     has_json_field: bool = False,
+    has_geometry_field: bool = False,
     sql_functions: list[SqlFunction] | None = None,
     sql_knowledge: SqlKnowledge | None = None,
 ) -> dict:
@@ -117,6 +123,9 @@ def prompt(
         ),
         json_field_instructions=(
             get_json_field_instructions(sql_knowledge) if has_json_field else ""
+        ),
+        geometry_field_instructions=(
+            get_geometry_field_instructions(sql_knowledge) if has_geometry_field else ""
         ),
         sql_samples=sql_samples,
         sql_functions=sql_functions,
@@ -204,6 +213,7 @@ class FollowUpSQLGeneration(BasicPipeline):
         has_calculated_field: bool = False,
         has_metric: bool = False,
         has_json_field: bool = False,
+        has_geometry_field: bool = False,
         sql_functions: list[SqlFunction] | None = None,
         use_dry_plan: bool = False,
         allow_dry_plan_fallback: bool = True,
@@ -229,6 +239,7 @@ class FollowUpSQLGeneration(BasicPipeline):
                 "has_calculated_field": has_calculated_field,
                 "has_metric": has_metric,
                 "has_json_field": has_json_field,
+                "has_geometry_field": has_geometry_field,
                 "sql_functions": sql_functions,
                 "use_dry_plan": use_dry_plan,
                 "allow_dry_plan_fallback": allow_dry_plan_fallback,

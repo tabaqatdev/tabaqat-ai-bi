@@ -93,6 +93,17 @@ Output all questions in the following JSON format:
 
    - Example: _"Are there inconsistencies in the sales records for Q1?"_
 
+5. **Spatial/Geographic Questions** (only if geometry columns are present)  
+   Analyze spatial patterns, locations, and geographic distributions.
+   
+   **IMPORTANT**: When generating spatial questions, ensure the resulting SQL includes ALL valuable columns (names, IDs, descriptions, counts, statuses, dates, etc.) in addition to the geometry column. Never return only geometry - include contextual data for map popups and reports.
+
+   - Example: _"Show all incidents on a map"_
+   - Example: _"Which areas have the highest concentration of events?"_
+   - Example: _"What is the geographic distribution of facilities by region?"_
+   - Example: _"Which neighborhoods are most affected by current incidents?"_
+   - Example: _"Show me the nearest hospitals to each emergency location"_
+
 ---
 
 ### Example JSON Output
@@ -156,6 +167,10 @@ Categories: {{categories}}
 {% endfor %}
 {% endif %}
 
+{% if has_geometry_field %}
+**IMPORTANT**: The database schema contains geometry/spatial columns. You MUST include "Spatial/Geographic Questions" as one of the categories and generate map-related, location-based, and spatial analysis questions. When generating spatial questions, ensure the resulting SQL includes ALL valuable columns (names, IDs, descriptions, counts, statuses, dates, etc.) in addition to the geometry column. Never return only geometry - include contextual data for map popups and reports.
+{% endif %}
+
 Please generate {{max_questions}} insightful questions for each of the {{max_categories}} categories based on the provided data model. Both the questions and category names should be translated into {{language}}{% if user_question %} and be related to the user's question{% endif %}. The output format should maintain the structure but with localized text.
 """
 
@@ -168,6 +183,7 @@ def prompt(
     language: str,
     max_questions: int,
     max_categories: int,
+    has_geometry_field: bool,
     prompt_builder: PromptBuilder,
 ) -> dict:
     """
@@ -182,6 +198,7 @@ def prompt(
         language=language,
         max_questions=max_questions,
         max_categories=max_categories,
+        has_geometry_field=has_geometry_field,
     )
     return {"prompt": clean_up_new_lines(_prompt.get("prompt"))}
 
@@ -261,6 +278,7 @@ class QuestionRecommendation(BasicPipeline):
         language: str = "en",
         max_questions: int = 5,
         max_categories: int = 3,
+        has_geometry_field: bool = False,
         **_,
     ) -> dict:
         logger.info("Question Recommendation pipeline is running...")
@@ -273,6 +291,7 @@ class QuestionRecommendation(BasicPipeline):
                 "language": language,
                 "max_questions": max_questions,
                 "max_categories": max_categories,
+                "has_geometry_field": has_geometry_field,
                 **self._components,
             },
         )

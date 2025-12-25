@@ -23,6 +23,60 @@ const MapContainer = styled.div`
   }
 `;
 
+const BasemapSwitcher = styled.div`
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 100;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+`;
+
+const BasemapButton = styled.button<{ $active?: boolean }>`
+  display: block;
+  padding: 8px 12px;
+  border: none;
+  background: ${props => props.$active ? '#1890ff' : 'white'};
+  color: ${props => props.$active ? 'white' : '#333'};
+  cursor: pointer;
+  font-size: 12px;
+  width: 100%;
+  text-align: left;
+  transition: all 0.2s;
+
+  &:hover {
+    background: ${props => props.$active ? '#1890ff' : '#f5f5f5'};
+  }
+
+  &:not(:last-child) {
+    border-bottom: 1px solid #e8e8e8;
+  }
+`;
+
+const BasemapToggle = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: white;
+  cursor: pointer;
+  border-radius: 4px;
+
+  &:hover {
+    background: #f5f5f5;
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
+    color: #333;
+  }
+`;
+
 const LoadingOverlay = styled.div`
   position: absolute;
   top: 0;
@@ -535,6 +589,64 @@ const calculateBounds = (
   ];
 };
 
+// Basemap definitions
+interface BasemapConfig {
+  id: string;
+  name: string;
+  tiles: string[];
+  attribution: string;
+  isCustom?: boolean;
+}
+
+const DEFAULT_BASEMAPS: BasemapConfig[] = [
+  {
+    id: 'osm',
+    name: 'OpenStreetMap',
+    tiles: [
+      'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    ],
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+  {
+    id: 'satellite',
+    name: 'Satellite',
+    tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+    attribution: '&copy; Esri, Maxar, Earthstar Geographics',
+  },
+  {
+    id: 'dark',
+    name: 'Dark',
+    tiles: [
+      'https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+      'https://cartodb-basemaps-b.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+      'https://cartodb-basemaps-c.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+    ],
+    attribution: '&copy; CARTO, OpenStreetMap contributors',
+  },
+  {
+    id: 'light',
+    name: 'Light',
+    tiles: [
+      'https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
+      'https://cartodb-basemaps-b.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
+      'https://cartodb-basemaps-c.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
+    ],
+    attribution: '&copy; CARTO, OpenStreetMap contributors',
+  },
+];
+
+// Load basemaps from localStorage or use defaults
+const getBasemaps = (): Record<string, BasemapConfig> => {
+  const savedBasemaps = localStorage.getItem('basemaps');
+  const basemapList = savedBasemaps ? JSON.parse(savedBasemaps) : DEFAULT_BASEMAPS;
+  return basemapList.reduce((acc: Record<string, BasemapConfig>, basemap: BasemapConfig) => {
+    acc[basemap.id] = basemap;
+    return acc;
+  }, {});
+};
+
 export default function MapView(props: MapViewProps) {
   const { data, columns, width = '100%', height = 400 } = props;
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -542,6 +654,44 @@ export default function MapView(props: MapViewProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mapLibreLoaded, setMapLibreLoaded] = useState(false);
+  
+  // Load basemaps from localStorage
+  const BASEMAPS = useMemo(() => getBasemaps(), []);
+  
+  const [currentBasemap, setCurrentBasemap] = useState<string>(() => {
+    // Load default basemap from localStorage
+    const savedDefault = localStorage.getItem('defaultBasemap');
+    return savedDefault || 'osm';
+  });
+  const [showBasemapMenu, setShowBasemapMenu] = useState(false);
+  const basemapMenuRef = useRef<HTMLDivElement>(null);
+  
+  // Get basemap order from localStorage
+  const basemapOrder = useMemo(() => {
+    const savedOrder = localStorage.getItem('basemapOrder');
+    if (savedOrder) {
+      try {
+        return JSON.parse(savedOrder) as string[];
+      } catch {
+        return Object.keys(BASEMAPS);
+      }
+    }
+    return Object.keys(BASEMAPS);
+  }, [BASEMAPS]);
+
+  // Close basemap menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (basemapMenuRef.current && !basemapMenuRef.current.contains(event.target as Node)) {
+        setShowBasemapMenu(false);
+      }
+    };
+
+    if (showBasemapMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showBasemapMenu]);
 
   // Find geometry column or lat/long columns and convert data to GeoJSON
   const { geojson, hasGeometry } = useMemo(() => {
@@ -583,29 +733,25 @@ export default function MapView(props: MapViewProps) {
           return;
         }
 
-        // Initialize map
+        // Initialize map with current basemap
+        const basemap = BASEMAPS[currentBasemap];
         const map = new maplibregl.Map({
           container: mapContainer.current,
           style: {
             version: 8,
             sources: {
-              osm: {
+              basemap: {
                 type: 'raster',
-                tiles: [
-                  'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                ],
+                tiles: basemap.tiles,
                 tileSize: 256,
-                attribution:
-                  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                attribution: basemap.attribution,
               },
             },
             layers: [
               {
-                id: 'osm',
+                id: 'basemap',
                 type: 'raster',
-                source: 'osm',
+                source: 'basemap',
                 minzoom: 0,
                 maxzoom: 19,
               },
@@ -756,7 +902,50 @@ export default function MapView(props: MapViewProps) {
         mapRef.current = null;
       }
     };
-  }, [geojson, hasGeometry]);
+  }, [geojson, hasGeometry, currentBasemap]);
+
+  // Handle basemap change
+  const handleBasemapChange = (basemapKey: string) => {
+    if (!mapRef.current || basemapKey === currentBasemap) return;
+    
+    const map = mapRef.current;
+    const basemap = BASEMAPS[basemapKey];
+    
+    // Update the basemap source
+    const source = map.getSource('basemap');
+    if (source) {
+      // Remove old source and layer, add new ones
+      if (map.getLayer('basemap')) {
+        map.removeLayer('basemap');
+      }
+      map.removeSource('basemap');
+      
+      map.addSource('basemap', {
+        type: 'raster',
+        tiles: basemap.tiles,
+        tileSize: 256,
+        attribution: basemap.attribution,
+      });
+      
+      // Add basemap layer at the bottom
+      const layers = map.getStyle().layers;
+      const firstNonBasemapLayer = layers.find((layer: any) => layer.id !== 'basemap');
+      
+      map.addLayer(
+        {
+          id: 'basemap',
+          type: 'raster',
+          source: 'basemap',
+          minzoom: 0,
+          maxzoom: 19,
+        },
+        firstNonBasemapLayer?.id
+      );
+    }
+    
+    setCurrentBasemap(basemapKey);
+    setShowBasemapMenu(false);
+  };
 
   if (!hasGeometry) {
     return (
@@ -788,6 +977,37 @@ export default function MapView(props: MapViewProps) {
         </LoadingOverlay>
       )}
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+      
+      {/* Basemap Switcher */}
+      {!isLoading && (
+        <BasemapSwitcher ref={basemapMenuRef}>
+          {showBasemapMenu ? (
+            <>
+              {basemapOrder.map((key) => (
+                <BasemapButton
+                  key={key}
+                  $active={currentBasemap === key}
+                  onClick={() => handleBasemapChange(key)}
+                >
+                  {BASEMAPS[key].name}
+                </BasemapButton>
+              ))}
+            </>
+          ) : (
+            <BasemapToggle
+              onClick={() => setShowBasemapMenu(!showBasemapMenu)}
+              title="Change basemap"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+              </svg>
+            </BasemapToggle>
+          )}
+        </BasemapSwitcher>
+      )}
     </MapContainer>
   );
 }

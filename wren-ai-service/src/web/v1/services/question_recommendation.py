@@ -69,7 +69,7 @@ class QuestionRecommendation:
         project_id: Optional[str] = None,
         allow_data_preview: bool = True,
     ):
-        async def _document_retrieval() -> tuple[list[str], bool, bool, bool]:
+        async def _document_retrieval() -> tuple[list[str], bool, bool, bool, bool]:
             retrieval_result = await self._pipelines["db_schema_retrieval"].run(
                 query=candidate["question"],
                 project_id=project_id,
@@ -80,7 +80,8 @@ class QuestionRecommendation:
             has_calculated_field = _retrieval_result.get("has_calculated_field", False)
             has_metric = _retrieval_result.get("has_metric", False)
             has_json_field = _retrieval_result.get("has_json_field", False)
-            return table_ddls, has_calculated_field, has_metric, has_json_field
+            has_geometry_field = _retrieval_result.get("has_geometry_field", False)
+            return table_ddls, has_calculated_field, has_metric, has_json_field, has_geometry_field
 
         async def _sql_pairs_retrieval() -> list[dict]:
             sql_pairs_result = await self._pipelines["sql_pairs_retrieval"].run(
@@ -105,7 +106,7 @@ class QuestionRecommendation:
                 _sql_pairs_retrieval(),
                 _instructions_retrieval(),
             )
-            table_ddls, has_calculated_field, has_metric, has_json_field = _document
+            table_ddls, has_calculated_field, has_metric, has_json_field, has_geometry_field = _document
 
             if self._allow_sql_functions_retrieval:
                 sql_functions = await self._pipelines["sql_functions_retrieval"].run(
@@ -130,6 +131,7 @@ class QuestionRecommendation:
                 has_calculated_field=has_calculated_field,
                 has_metric=has_metric,
                 has_json_field=has_json_field,
+                has_geometry_field=has_geometry_field,
                 sql_functions=sql_functions,
                 allow_data_preview=allow_data_preview,
                 sql_knowledge=sql_knowledge,
@@ -208,6 +210,7 @@ class QuestionRecommendation:
             _retrieval_result = retrieval_result.get("construct_retrieval_results", {})
             documents = _retrieval_result.get("retrieval_results", [])
             table_ddls = [document.get("table_ddl") for document in documents]
+            has_geometry_field = _retrieval_result.get("has_geometry_field", False)
 
             request = {
                 "contexts": table_ddls,
@@ -215,6 +218,7 @@ class QuestionRecommendation:
                 "language": input.configurations.language,
                 "max_questions": input.max_questions,
                 "max_categories": input.max_categories,
+                "has_geometry_field": has_geometry_field,
                 "project_id": input.project_id,
                 "event_id": input.event_id,
                 "allow_data_preview": input.allow_data_preview,
